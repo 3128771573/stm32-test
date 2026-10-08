@@ -1,0 +1,29 @@
+# Keil 编译产物（可由源码重新生成）
+# 例外：保留预编译的 hex，方便直接烧录
+MDK-ARM/Obj/*
+!MDK-ARM/Obj/level.hex
+MDK-ARM/List/
+MDK-ARM/RTE/
+MDK-ARM/DebugConfig/
+MDK-ARM/build.log
+MDK-ARM/*.scvd
+
+# Keil 个人界面 / 调试器设置
+*.uvguix.*
+*.uvgui.*
+*.uvopt.bak
+*.uvopt
+*.uvproj.bak
+*.uvprojx.bak
+*.saved_uv4
+*_uvoptx.bak
+
+# J-Link 痕迹
+JLinkLog.txt
+JLinkSettings.ini
+
+# 编辑器临时文件
+*~
+*.swp
+Thumbs.db
+desktop.ini
