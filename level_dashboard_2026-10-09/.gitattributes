@@ -1,0 +1,12 @@
+# Preserve Keil ANSI/GBK sources and firmware checksums byte for byte.
+*.c -text
+*.h -text
+*.s -text
+readme.txt -text
+firmware/*.hex -text
+
+# Keep CRLF in Git blobs too, so GitHub ZIP/raw downloads also work on Windows.
+*.cmd -text
+*.bat -text
+*.md text eol=lf
+firmware/SHA256SUMS.txt text eol=lf

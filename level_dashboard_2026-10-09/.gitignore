@@ -1,0 +1,29 @@
+# Keil 编译产物（可由源码重新生成）
+# 预编译固件保存在 firmware/，不提交 Obj/ 编译产物
+MDK-ARM/Obj/*
+MDK-ARM/List/
+MDK-ARM/RTE/
+MDK-ARM/DebugConfig/
+MDK-ARM/build.log
+MDK-ARM/*.scvd
+
+# Keil 个人界面 / 调试器设置
+*.uvguix.*
+*.uvgui.*
+*.uvoptx
+*.uvopt.bak
+*.uvopt
+*.uvproj.bak
+*.uvprojx.bak
+*.saved_uv4
+*_uvoptx.bak
+
+# J-Link 痕迹
+JLinkLog.txt
+JLinkSettings.ini
+
+# 编辑器临时文件
+*~
+*.swp
+Thumbs.db
+desktop.ini
