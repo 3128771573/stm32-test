@@ -3,14 +3,20 @@
 STM32F103C8T6 + MPU6050 + SSD1306 I2C OLED + W25QXX + DHT11 + 旋转编码器 + 三色状态灯。
 基于 ST 标准外设库 V3.5.0 / Keil AC5，全部整数运算。
 
-这是 `level_dashboard_2026-10-09/` 独立版本工程，源码、标准库及 Keil 工程均在本目录。
-更新内容和升级验收见 [CHANGELOG.md](CHANGELOG.md)；原七阶段水平仪保留在仓库的 [level/](../level/README.md)。
-可直接烧录 [新版 HEX](firmware/level.hex)，或用 [上一轮七页版 HEX](firmware/level_previous.hex) 回退对照。
+当前工作版为 2026-10-10 开机时长记录版（屏显版本 `20261010E`），包含十页仪表、真实逐项自检、编码器翻页、温湿度、循环记录、原始数据、实时趋势、红蓝爆闪和历史开机时长。
+原七阶段版本有实物验收记录；本优化版已编译和逻辑校验，新增会话记录仍需用户烧板验收。
 
-当前为 2026-10-09 多功能版：七页仪表、编码器翻页、温湿度、掉电保存的循环记录、原始数据和实时趋势。
-原七阶段版本有实物验收记录；本优化版已编译和逻辑校验，尚需用户烧板验收。
+**当前发布：2026-10-10 E 版**。下载 [可烧录固件 HEX](firmware/level.hex)，或用 [上一轮公开七页版 HEX](firmware/level_previous.hex) 对照回退。SHA-256 列在 [固件校验清单](firmware/SHA256SUMS.txt)。新版源码和完整接线文档均在本目录。
 
-![由实际绘图代码导出的七页及校准界面，数值为校验样例](docs/screen.png)
+![由实际绘图代码导出的基础页面及校准界面，数值为校验样例](docs/screen.png)
+
+新增独立 **STROBE** 页面，四种红蓝节奏与 OFF 档，操作见 [红蓝灯效说明](docs/strobe.md)。
+旋转到该页即播放上次选中的模式（开机默认 DOUBLE），停留 0.8 秒进入 MODE，旋转选档；首末档继续旋转可退出。
+不用增加接线；红灯 PA8、蓝灯 PA10 仍各串 330Ω。离开后自动恢复原状态灯。
+
+![实际绘图代码导出的精简灯效页面](docs/strobe.png)
+
+新增 **RUNTIME / SESSIONS**：显示本次实时开机时长、开机编号、复位原因，并可用旋转编码器逐次查看 Flash 保存的历史开机时长。Flash 每分钟保存一次存活检查点；突然断电时，上一轮显示最近检查点形成的时长下界（误差通常小于约一分钟），没有检查点时明确显示 `NO CHECKPOINT`。无需校时或新增接线。事件区循环保存，较早会话会被新记录覆盖；详见[开机时长说明](docs/sessions.md)。
 
 ## 接线与使用
 
@@ -33,7 +39,7 @@ OLED 是 **4 针 I2C**，地址 0x3C（7 位）/ 0x78（8 位写地址）。
 MPU6050 地址 0x68，AD0 悬空（模块已有下拉）；INT / XDA / XCL 不接。
 核心板自己供电时，ST-Link 的 3.3V 不接。
 
-1. 水平放稳后上电，蜂鸣器短鸣自检。
+1. 上电蜂鸣器短鸣后进入复古 `SYSTEM POST` 自检，三屏共 11 项逐项检查：每项先显示 `TEST`，完成真实读回、通信或扫描后才显示结果。开机不再逐项停顿；DHT 上电等待与 OLED/MPU 检查重叠；最后扫描事件区并提交、读回本次 BOOT。Flash 扫描进度按实际读取记录更新。`ERR / SKIP / LOCK` 是真实检查结果，不会伪报通过；`CFG` 仅表示 GPIO / PWM 配置寄存器已核对。检查收尾后进入仪表；MPU 通过时才开始后台水平校准。
 2. 校准界面显示 `HOLD STILL` 和细进度条，采 100 点，正常约 1 秒。
 3. 缺少有效样本、明显晃动或 Z 分量过小时拒绝校准，显示 `PLACE FLAT` 并自动重试；传感器未就绪时显示 `CHECK SENSOR`。校准在后台进行，可以切到其他页。
 4. 左侧气泡与右侧角度跟随倾斜；持续进入水平区后，右上显示 `LEVEL`，短鸣一次。
@@ -74,6 +80,8 @@ MPU6050 地址 0x68，AD0 悬空（模块已有下拉）；INT / XDA / XCL 不�
   连续 100ms 无有效采样显示 `CHECK SENSOR`、关闭水平提示，每秒尝试恢复总线及重新初始化。
   恢复后沿用开机零点，重新初始化滤波。OLED 写失败不确认缓存，每 500ms 尝试逐条检查 ACK 的重配置，
   恢复后完整补刷，不连续重复访问掉线的屏幕。
+  I2C 起始和传输会核对 SCL/SDA 的真实电平，线路持续拉低不能冒充 ACK；开机 OLED 缺席时板载 LED 闪码并定期重试。
+  Flash 运行中通信错误后按退避间隔重新识别、只读扫描；未知格式区域继续锁定，不自动擦写。
 - **界面收简**：日常页去掉常驻页码、底栏和分隔线，保存提示只临时出现在右上。
   首页圆盘半径 28px，气泡半径 6px，双层轮廓和小高光；中心用四个小定位角，保留原实测方向。
   气泡使用 Q8 亚像素位置、约 45ms 缓动及像素滞回，显示变化更稳；温湿度故障码集中在 DEBUG。
@@ -89,15 +97,16 @@ SysTick 负责时间、输入消抖和灯光包络，不在中断里操作 I2C�
 SysTick 同时负责编码器消抖和灯光包络，不产生软件 PWM；DHT11 修复后已由用户确认正常读取。
 
 RAW DATA 显示 MPU 六轴及温度寄存器原始值；TREND 显示最近约 12 秒的俯仰/横滚曲线，断线留空。
-DEBUG 显示 DHT 原始帧、错误与边沿计数、RGB PWM 计数、编码器电平、有效采样率、绘图帧率和 MPU 读取错误累计。
+DEBUG 显示 DHT 原始帧、错误与边沿计数、RGB PWM 计数、编码器电平、有效采样率、绘图帧率和最坏调度间隔。
+底行 `E/G/L` 分别为 MPU 读取失败累计（显示封顶 9999）、自进入主界面以来最大的相邻采样尝试间隔和主循环间隔（毫秒，显示封顶 999）。
+SYSTEM 顶部 `SYS POR/PIN/SW/IWD/WWD/LPW` 显示 MCU 保留的上次复位原因；底行同时显示 Flash JEDEC ID 和固件版本。
 为取得全部 MPU 数据，采样从连读 6 字节改为连读 14 字节，目标仍为每 5ms 一次；实际速率可在 DEBUG 查看。
 
 ## 编译与烧录
 
 - Keil 5 打开 `MDK-ARM/level.uvprojx`，F7 编译、F8 下载。
-- 命令行：在本版本目录 `level_dashboard_2026-10-09` 执行 `build.cmd`。
-- 预编译固件见 `firmware/level.hex`，校验值见 `firmware/SHA256SUMS.txt`。
-- 自行编译后生成 `MDK-ARM/Obj/level.hex`；该路径的编译产物不入库。
+- 命令行：在 `level` 目录执行 `build.cmd`。
+- 可直接烧录 `MDK-ARM/Obj/level.hex`。
 - 编译器 ARM Compiler 5.06 update 7；器件宏 `STM32F10X_MD,USE_STDPERIPH_DRIVER` 在工程设置里。
 - `build.cmd` 会查找 UV4，并把 Keil 的退出码传回调用者。
 - 源码 / `readme.txt` 使用 GBK，README 使用 UTF-8；批处理使用 CRLF。
@@ -142,6 +151,7 @@ DEBUG 显示 DHT 原始帧、错误与边沿计数、RGB PWM 计数、编码器�
 9. 放稳且不操作 45 秒：屏幕逐渐变暗，画面仍可辨认；转编码器或慢慢倾斜至少 0.3° 后恢复亮度。
 10. 校准完成后倒置或大幅倾斜：显示 `FLIP BOARD` / `TILT RANGE`，不假判水平；放回正常姿态后恢复。
 11. OLED 运行中掉线再恢复：重配置后完整补刷；这项及新增操作仍需板上验收。
+12. 开机 POST：11 行先显示 `TEST`，结束后才出现 `DONE / ERR / CFG / SKIP` 等结果；计数是已得到结果的项数，不代表全部通过。DHT11 显示 `WAIT` 直到收到首帧；W25QXX 展示实际 JEDEC ID；两个日志区均显示实际扫描状态。EVENT 的 `DONE` 只在本次 BOOT 提交并读回后出现。
 
 ## 排查
 
@@ -161,7 +171,7 @@ DEBUG 显示 DHT 原始帧、错误与边沿计数、RGB PWM 计数、编码器�
 `USER/main.c` 负责校准、滤波、调度、界面及提示；`oled.c` 负责绘图和差分刷新；
 `mpu6050.c` / `i2c.c` 为传感器及总线驱动；`delay.c` 提供时钟；`led.c` / `buzzer.c` 控制提示。
 `Libraries` 为 ST 标准外设库；`MDK-ARM` 为 Keil 工程；`docs` 为接线和验证资料。
-新增 `controls.c` / `dht11.c` / `w25qxx.c` / `logger.c` / `dashboard.c` 分别负责输入和灯光、温湿度、SPI Flash、掉电记录和页面。
+新增 `controls.c` / `dht11.c` / `w25qxx.c` / `logger.c` / `eventlog.c` / `dashboard.c` 分别负责输入和灯光、温湿度、SPI Flash、传感器记录、开机时长事件和页面。
 旧配图 wiring.png、diagram_block.png、diagram_flow.png 是原水平仪资料；新增接线以 docs/dashboard.md 为准。
 
 PC 仿真框架已按要求删除。参考资料 `files/` 和密钥 `.ssh/` 不入库。

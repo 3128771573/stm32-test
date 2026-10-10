@@ -505,6 +505,16 @@
               <FilePath>..\USER\logger.h</FilePath>
             </File>
             <File>
+              <FileName>eventlog.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\USER\eventlog.c</FilePath>
+            </File>
+            <File>
+              <FileName>eventlog.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\USER\eventlog.h</FilePath>
+            </File>
+            <File>
               <FileName>dashboard.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\USER\dashboard.c</FilePath>

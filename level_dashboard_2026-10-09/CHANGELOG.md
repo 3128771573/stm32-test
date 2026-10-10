@@ -6,6 +6,15 @@
 完整说明见 [README](README.md)，首次接线见 [傻瓜接线教程](docs/wiring-beginner.md)，
 页面操作见 [接线与验收](docs/dashboard.md)，软件验证记录见 [validation.md](docs/validation.md)。
 
+## 2026-10-10 E 版：开机时长与历史会话
+
+将十页仪表当前工作版发布到本目录。`RUNTIME` 显示本次开机的实时运行时长、开机编号和复位原因；`SESSIONS` 可用旋转编码器逐条查看每次开机记录。日期与 RTC 已移除，无需校时或 VBAT 电池。
+
+W25QXX 事件区为每次开机写入 BOOT，并每分钟写入一次存活检查点。突然断电无法写下最终时长，历史页面使用最近一次检查点作为时长下界；没有检查点时明确显示 `NO CHECKPOINT`。事件区容量有限，旧会话会循环覆盖。启动自检只有在本次 BOOT 写入并读回确认后才显示 `EVENT DONE`。旧事件格式仍能读取，原有传感器日志格式和末尾 64KB 区域保持不变。
+
+固件由 Keil ARM Compiler 5.06 update 7 构建，0 错误、0 警告；map Total ROM 为 31,536 字节，RW+ZI 为 8,048 字节。当前 HEX 的 SHA-256 为 `E5E01E7FB6E05E1369147C6647CB159F22D57C45F70B46F334656BDD6B7F6FB8`。本版新增会话记录已编译，仍需实物验收 Flash 保存和断电后的历史浏览。
+
+本目录 `firmware/level_previous.hex` 保存本次更新前公开的七页版；原七阶段参考工程仍单独保留在仓库 `level/`。
 ## 相对原水平仪的变化
 
 - 新增 DHT11 温湿度，约每 2.5 秒读取；完整帧校验、超时和旧数据过期均有状态提示。

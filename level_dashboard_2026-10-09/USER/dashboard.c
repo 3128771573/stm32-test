@@ -4,6 +4,7 @@
 #include "logger.h"
 #include "w25qxx.h"
 #include "controls.h"
+#include "eventlog.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -172,6 +173,8 @@ static void history_page(const DashboardView *v)
 static void system_page(const DashboardView *v)
 {
     char text[24];const DHT11_Data *d=DHT11_Get();uint32_t cap=W25Q_Capacity();
+    sprintf(text,"SYS %s",v->reset_reason?v->reset_reason:"?");
+    OLED_ShowSmallString(4,1,text);
     sprintf(text,"UP %luS",(unsigned long)v->uptime_s);
     OLED_ShowSmallString((uint8_t)(124-strlen(text)*6),1,text);
     sprintf(text,"MPU %s",v->raw_valid?"OK":"WAIT");OLED_ShowSmallString(4,18,text);
@@ -179,7 +182,8 @@ static void system_page(const DashboardView *v)
     OLED_ShowSmallString(4,32,"FLASH");OLED_ShowSmallString(68,32,flash_state(Logger_State()));
     sprintf(text,"%luKB",(unsigned long)(cap/1024));OLED_ShowSmallString(4,44,text);
     sprintf(text,"%u LOG",Logger_Count());OLED_ShowSmallString(68,44,text);
-    sprintf(text,"ID %06lX",(unsigned long)W25Q_ID());OLED_ShowSmallString(4,56,text);
+    sprintf(text,"ID %06lX V%s",(unsigned long)W25Q_ID(),DASHBOARD_FW_VERSION);
+    OLED_ShowSmallString(4,56,text);
 }
 static void raw_page(const DashboardView *v)
 {
@@ -244,22 +248,109 @@ static void debug_page(const DashboardView *v)
     sprintf(text,"E%u N%u P%u TRY%u",d->error,d->edges,d->idle_high,d->attempts%1000);OLED_ShowSmallString(4,23,text);
     sprintf(text,"R%4u G%4u B%4u",(unsigned)TIM1->CCR1,(unsigned)TIM1->CCR2,(unsigned)TIM1->CCR3);OLED_ShowSmallString(4,32,text);
     sprintf(text,"AB%u K%u S%u F%u",(unsigned)(GPIOB->IDR&3),Controls_ButtonDown(),v->sample_hz,v->frame_hz);OLED_ShowSmallString(4,41,text);
-    sprintf(text,"MPU ERR %lu",(unsigned long)v->mpu_errors);OLED_ShowSmallString(4,53,text);
+    sprintf(text,"E%lu G%u L%u",(unsigned long)(v->mpu_errors>9999?9999:v->mpu_errors),
+        v->max_sample_gap_ms,v->max_loop_ms);
+    OLED_ShowSmallString(4,53,text);
+}
+static void strobe_page(const DashboardView *v)
+{
+    const char *name=Controls_StrobeName(v->strobe_mode);
+    uint8_t width=(uint8_t)(strlen(name)*12),k;
+    OLED_ShowSmallString(98,1,v->browsing?"MODE":"PLAY");
+    OLED_ShowLargeString((uint8_t)((128-width)/2),22,name);
+    for(k=0;k<STROBE_MODE_COUNT;k++){
+        OLED_DrawCircle((uint8_t)(44+k*10),48,2,1);
+        if(k==v->strobe_mode)OLED_DrawDisc((uint8_t)(44+k*10),48,1,1);
+    }
+    if(v->strobe_hint)center_small(56,v->browsing?"TURN TO SELECT":"WAIT TO EDIT");
+}
+static const char *event_text(uint8_t state)
+{
+    if(state==EVENT_READY)return "OK";
+    if(state==EVENT_SCANNING)return "SCAN";
+    if(state==EVENT_LOCKED)return "LOCK";
+    if(state==EVENT_ERROR)return "ERR";
+    if(state==EVENT_OFFLINE)return "NA";
+    return "BUSY";
+}
+static const char *event_reset_name(uint8_t code)
+{
+    if(code&0x20)return "IWD";
+    if(code&0x40)return "WWD";
+    if(code&0x10)return "SW";
+    if(code&0x08)return "POR";
+    if(code&0x80)return "LPW";
+    if(code&0x04)return "PIN";
+    return "UNK";
+}
+static void event_page(const DashboardView *v)
+{
+    EventLast event;
+    char text[40];uint32_t up;
+    uint16_t count=EventLog_SessionCount();
+    if(!count){
+        OLED_ShowLargeString(4,21,"NO EVENTS");
+        center_small(46,event_text(EventLog_State()));return;
+    }
+    if(EventLog_ReadSession(v->rank,&event)){
+        OLED_ShowLargeString(4,21,EventLog_State()==EVENT_ERROR?"READ ERROR":"READING");return;
+    }
+    sprintf(text,"%u/%u",(unsigned)(v->rank+1U),(unsigned)count);
+    OLED_ShowSmallString((uint8_t)(126-strlen(text)*6),1,text);
+    sprintf(text,"BOOT #%lu",(unsigned long)(event.boot_count>999999UL?999999UL:event.boot_count));
+    center_small(17,text);
+    if(event.boot_count==EventLog_BootCount())event.uptime_seconds=v->uptime_s;
+    up=event.uptime_seconds;
+    if(event.boot_count==EventLog_BootCount())
+        sprintf(text,"RUN %luD %02lu:%02lu:%02lu",(unsigned long)(up/86400UL),
+        (unsigned long)(up/3600UL%24UL),(unsigned long)(up/60UL%60UL),
+        (unsigned long)(up%60UL));
+    else if(up)
+        sprintf(text,">= %luD %02lu:%02lu:%02lu",(unsigned long)(up/86400UL),
+            (unsigned long)(up/3600UL%24UL),(unsigned long)(up/60UL%60UL),
+            (unsigned long)(up%60UL));
+    else sprintf(text,"NO CHECKPOINT");
+    center_small(34,text);
+    sprintf(text,"RESET %s  #%lu",event_reset_name(event.reset_code),
+        (unsigned long)(event.sequence>999999UL?999999UL:event.sequence));
+    center_small(49,text);
+    center_small(60,event.boot_count==EventLog_BootCount()?"CURRENT SESSION":"SAVED MINIMUM");
 }
 void Dashboard_Draw(const DashboardView *v)
 {
-    static const char *titles[DASHBOARD_PAGE_COUNT]={"LEVEL","CLIMATE","HISTORY","SYSTEM","RAW DATA","TREND","DEBUG"};
+    static const char *titles[DASHBOARD_PAGE_COUNT]={"LEVEL","CLIMATE","HISTORY","SYSTEM","RAW DATA","TREND","DEBUG","STROBE","RUNTIME","SESSIONS"};
     uint8_t width;
     if(v->page>=DASHBOARD_PAGE_COUNT)return;
     OLED_Clear();
-    if(v->page) {bubble_ready=0;OLED_ShowSmallString(4,1,v->page==2&&v->browsing?"BROWSE":titles[v->page]);}
+    if(v->page) {bubble_ready=0;if(v->page!=3)
+        OLED_ShowSmallString(4,1,(v->page==2||v->page==EVENT_PAGE)&&v->browsing?
+            "BROWSE":titles[v->page]);}
     if(v->page==0) level_page(v);
     else if(v->page==1) climate_page();
     else if(v->page==2) history_page(v);
     else if(v->page==3)system_page(v);
     else if(v->page==4)raw_page(v);
     else if(v->page==5)trend_page(v);
-    else debug_page(v);
+    else if(v->page==6)debug_page(v);
+    else if(v->page==STROBE_PAGE)strobe_page(v);
+    else if(v->page==RUNTIME_PAGE){
+        char text[32];EventLast previous;
+        sprintf(text,"BOOT #%lu",(unsigned long)(EventLog_BootCount()>999999UL?999999UL:EventLog_BootCount()));
+        center_small(14,text);
+        sprintf(text,"%02lu:%02lu:%02lu",(unsigned long)(v->uptime_s/3600UL%24UL),
+            (unsigned long)(v->uptime_s/60UL%60UL),(unsigned long)(v->uptime_s%60UL));
+        OLED_ShowLargeString(17,27,text);
+        sprintf(text,"DAYS %lu  RESET %s",(unsigned long)(v->uptime_s/86400UL),
+            v->reset_reason?v->reset_reason:"?");center_small(45,text);
+        if(EventLog_SessionCount()>1&&EventLog_ReadSession(1,&previous)==0){
+            if(previous.uptime_seconds)
+                sprintf(text,"PREV >= %lu MIN",(unsigned long)(previous.uptime_seconds/60UL));
+            else sprintf(text,"PREV NO CHECKPOINT");
+        }
+        else sprintf(text,"SESSIONS %u",(unsigned)EventLog_SessionCount());
+        center_small(58,text);
+    }
+    else event_page(v);
     if(v->toast){
         if(!v->page)OLED_FillRect(64,0,127,8,0);
         width=(uint8_t)(strlen(v->toast)*6+4);if(width>124)width=124;

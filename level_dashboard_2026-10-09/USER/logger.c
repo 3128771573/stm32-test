@@ -73,7 +73,8 @@ uint8_t Logger_ScanProgress(void) {return (uint8_t)((uint32_t)scan_slot*100/LOGG
 uint8_t Logger_ReadRecent(uint8_t rank,LogRecord *record)
 {
     uint8_t b[32];
-    if(rank>=recent_count || state==LOG_SCANNING || W25Q_Read(address(recent_slot[rank]),b,32)) return 1;
+    if(rank>=recent_count || state==LOG_SCANNING || state==LOG_WRITING || state==LOG_ERROR) return 1;
+    if(W25Q_Read(address(recent_slot[rank]),b,32)) {state=LOG_ERROR;return 1;}
     return Logger_Decode(b,record);
 }
 uint8_t Logger_Save(const LogRecord *record)

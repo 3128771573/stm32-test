@@ -1,10 +1,25 @@
 #include "i2c.h"
+#include "delay.h"
 
 #define SCL_HIGH()      GPIO_SetBits(I2C_PORT, I2C_SCL_PIN)
 #define SCL_LOW()       GPIO_ResetBits(I2C_PORT, I2C_SCL_PIN)
 #define SDA_HIGH()      GPIO_SetBits(I2C_PORT, I2C_SDA_PIN)
 #define SDA_LOW()       GPIO_ResetBits(I2C_PORT, I2C_SDA_PIN)
-#define SDA_READ()      GPIO_ReadInputDataBit(I2C_PORT, I2C_SDA_PIN)
+#define SDA_READ()      ((I2C_PORT->IDR & I2C_SDA_PIN) != 0)
+#define SCL_READ()      ((I2C_PORT->IDR & I2C_SCL_PIN) != 0)
+
+static uint8_t i2c_fault;
+static uint8_t scl_released(void)
+{
+    uint16_t start;
+    volatile uint32_t guard=10000UL;
+    if(SCL_READ())return 1;
+    start=delay_micros16();
+    while(!SCL_READ() && guard--)
+        if((uint16_t)(delay_micros16()-start)>=1000U)break;
+    if(!SCL_READ()){i2c_fault=1;return 0;}
+    return 1;
+}
 
 /* 半周期延时。用 volatile 计数器，防止编译器把空循环优化掉 */
 static void i2c_delay(void)
@@ -65,16 +80,20 @@ void SoftI2C_BusRecover(void)
 	i2c_delay();
 }
 
-static void i2c_start(void)
+static uint8_t i2c_start(void)
 {
+	i2c_fault=0;
 	SDA_HIGH();
 	i2c_delay();
 	SCL_HIGH();
+	if(!scl_released())return 1;
 	i2c_delay();
+	if(!SDA_READ()){i2c_fault=1;return 1;}
 	SDA_LOW();          /* SCL 为高时 SDA 下降沿 = 起始 */
 	i2c_delay();
 	SCL_LOW();
 	i2c_delay();
+	return 0;
 }
 
 static void i2c_stop(void)
@@ -82,21 +101,25 @@ static void i2c_stop(void)
 	SDA_LOW();
 	i2c_delay();
 	SCL_HIGH();
+	(void)scl_released();
 	i2c_delay();
 	SDA_HIGH();         /* SCL 为高时 SDA 上升沿 = 停止 */
 	i2c_delay();
+	if(!SDA_READ())i2c_fault=1;
 }
 
 /* 返回 0 = 从机应答，1 = 无应答 */
 static uint8_t i2c_send_byte(uint8_t byte)
 {
 	uint8_t i, ack;
+	if(i2c_fault)return 1;
 
 	for (i = 0; i < 8; i++)             /* 高位先发 */
 	{
 		if (byte & 0x80) SDA_HIGH(); else SDA_LOW();
 		i2c_delay();
 		SCL_HIGH();
+		if(!scl_released())return 1;
 		i2c_delay();
 		SCL_LOW();
 		i2c_delay();
@@ -107,6 +130,7 @@ static uint8_t i2c_send_byte(uint8_t byte)
 	SDA_HIGH();
 	i2c_delay();
 	SCL_HIGH();
+	if(!scl_released())return 1;
 	i2c_delay();
 	ack = (SDA_READ() == 0) ? 0 : 1;
 	SCL_LOW();
@@ -119,6 +143,7 @@ static uint8_t i2c_send_byte(uint8_t byte)
 static uint8_t i2c_read_byte(uint8_t send_ack)
 {
 	uint8_t i, byte = 0;
+	if(i2c_fault)return 0xFF;
 
 	SDA_HIGH();                         /* 主机释放 SDA，转为输入 */
 
@@ -126,6 +151,7 @@ static uint8_t i2c_read_byte(uint8_t send_ack)
 	{
 		byte <<= 1;
 		SCL_HIGH();
+		if(!scl_released())return 0xFF;
 		i2c_delay();
 		if (SDA_READ()) byte |= 0x01;   /* SCL 高电平期间采样 */
 		SCL_LOW();
@@ -135,6 +161,7 @@ static uint8_t i2c_read_byte(uint8_t send_ack)
 	if (send_ack) SDA_LOW(); else SDA_HIGH();
 	i2c_delay();
 	SCL_HIGH();
+	if(!scl_released())return 0xFF;
 	i2c_delay();
 	SCL_LOW();
 	i2c_delay();
@@ -148,18 +175,18 @@ uint8_t SoftI2C_Probe(uint8_t addr7)
 {
 	uint8_t ack;
 
-	i2c_start();
+	if(i2c_start()){i2c_stop();return 0;}
 	ack = i2c_send_byte((uint8_t)(addr7 << 1));
 	i2c_stop();
 
-	return (ack == 0) ? 1 : 0;
+	return (ack == 0 && !i2c_fault) ? 1 : 0;
 }
 
 uint8_t SoftI2C_WriteBytes(uint8_t addr7, const uint8_t *buf, uint16_t len)
 {
 	uint16_t i;
 
-	i2c_start();
+	if(i2c_start()){i2c_stop();return 1;}
 	if (i2c_send_byte((uint8_t)(addr7 << 1)) != 0)
 	{
 		i2c_stop();
@@ -176,14 +203,14 @@ uint8_t SoftI2C_WriteBytes(uint8_t addr7, const uint8_t *buf, uint16_t len)
 	}
 
 	i2c_stop();
-	return 0;
+	return i2c_fault;
 }
 
 uint8_t SoftI2C_ReadBytes(uint8_t addr7, uint8_t *buf, uint16_t len)
 {
 	uint16_t i;
 
-	i2c_start();
+	if(i2c_start()){i2c_stop();return 1;}
 	if (i2c_send_byte((uint8_t)((addr7 << 1) | 0x01)) != 0)
 	{
 		i2c_stop();
@@ -193,10 +220,11 @@ uint8_t SoftI2C_ReadBytes(uint8_t addr7, uint8_t *buf, uint16_t len)
 	for (i = 0; i < len; i++)
 	{
 		buf[i] = i2c_read_byte((uint8_t)((i < len - 1) ? 1 : 0));
+		if(i2c_fault){i2c_stop();return 1;}
 	}
 
 	i2c_stop();
-	return 0;
+	return i2c_fault;
 }
 
 uint8_t SoftI2C_WriteReg(uint8_t addr7, uint8_t reg, uint8_t val)
@@ -214,7 +242,7 @@ uint8_t SoftI2C_ReadRegs(uint8_t addr7, uint8_t reg, uint8_t *buf, uint16_t len)
 {
 	uint16_t i;
 
-	i2c_start();
+	if(i2c_start()){i2c_stop();return 1;}
 	if (i2c_send_byte((uint8_t)(addr7 << 1)) != 0)
 	{
 		i2c_stop();
@@ -226,7 +254,7 @@ uint8_t SoftI2C_ReadRegs(uint8_t addr7, uint8_t reg, uint8_t *buf, uint16_t len)
 		return 1;
 	}
 
-	i2c_start();                        /* 重复起始条件 */
+	if(i2c_start()){i2c_stop();return 1;} /* 重复起始条件 */
 	if (i2c_send_byte((uint8_t)((addr7 << 1) | 0x01)) != 0)
 	{
 		i2c_stop();
@@ -236,10 +264,11 @@ uint8_t SoftI2C_ReadRegs(uint8_t addr7, uint8_t reg, uint8_t *buf, uint16_t len)
 	for (i = 0; i < len; i++)
 	{
 		buf[i] = i2c_read_byte((uint8_t)((i < len - 1) ? 1 : 0));
+		if(i2c_fault){i2c_stop();return 1;}
 	}
 
 	i2c_stop();
-	return 0;
+	return i2c_fault;
 }
 
 uint8_t SoftI2C_ReadReg(uint8_t addr7, uint8_t reg, uint8_t *val)
@@ -253,8 +282,7 @@ uint8_t SoftI2C_ReadReg(uint8_t addr7, uint8_t reg, uint8_t *val)
 ---------------------------------------------------------------------------*/
 void SoftI2C_Begin(uint8_t addr7)
 {
-	i2c_start();
-	i2c_send_byte((uint8_t)(addr7 << 1));
+	if(!i2c_start())(void)i2c_send_byte((uint8_t)(addr7 << 1));
 }
 
 uint8_t SoftI2C_SendByte(uint8_t val)

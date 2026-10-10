@@ -9,10 +9,42 @@ static uint16_t hold_ticks, light_ticks, error_ticks, fade_ticks, save_hold;
 static uint8_t active_mode, light_divider;
 static uint16_t light_value[3], fade_from[3]; /* Perceived intensity, Q8. */
 static volatile uint16_t level_distance;
+static volatile uint8_t strobe_mode;
+static uint8_t strobe_active;
+static uint16_t strobe_ticks;
 
 #define LED_PWM_PERIOD 3600U
 #define LED_PWM_HZ 2000U
 #define LIGHT_FADE_MS 300U
+
+/* Timed hard edges, independent of OLED frames. 0=dark, 1=red, 2=blue. */
+typedef struct {uint16_t ms;uint8_t color;} StrobeStep;
+typedef struct {const StrobeStep *steps;const char *name;uint16_t period;uint8_t count;} StrobePattern;
+static const StrobeStep alternate[]={ {160,1},{40,0},{160,2},{40,0} };
+static const StrobeStep double_flash[]={
+    {70,1},{70,0},{70,1},{190,0},{70,2},{70,0},{70,2},{190,0}
+};
+static const StrobeStep triple_flash[]={
+    {45,1},{55,0},{45,1},{55,0},{45,1},{235,0},
+    {45,2},{55,0},{45,2},{55,0},{45,2},{235,0}
+};
+static const StrobeStep chase[]={
+    {60,1},{40,0},{60,2},{40,0},{60,1},{40,0},{60,2},{40,0},
+    {60,1},{40,0},{60,2},{40,0},{60,1},{40,0},{60,2},{40,0},{200,0}
+};
+static const StrobePattern strobe_patterns[STROBE_MODE_COUNT]={
+    {0,"OFF",1,0},{alternate,"ALT",400,4},{double_flash,"DOUBLE",800,8},
+    {triple_flash,"TRIPLE",960,12},{chase,"CHASE",1000,17}
+};
+static uint8_t strobe_color(uint8_t mode,uint16_t tick)
+{
+    const StrobePattern *p=&strobe_patterns[mode];uint8_t k;
+    for(k=0;k<p->count;k++){
+        if(tick<p->steps[k].ms)return p->steps[k].color;
+        tick=(uint16_t)(tick-p->steps[k].ms);
+    }
+    return 0;
+}
 
 static void light_pwm_init(void)
 {
@@ -58,21 +90,36 @@ static uint16_t pwm_duty(uint16_t perceived)
 }
 static void light_tick(void)
 {
-    uint8_t mode=light_mode,k;
+    uint8_t mode=light_mode,k,style=strobe_mode,color;
     uint16_t target[3]={0,0,0},weight;
     if(save_hold)save_hold--;
-    if(active_mode==LIGHT_SAVE&&save_hold&&mode!=LIGHT_ERROR)mode=LIGHT_SAVE;
+    if(active_mode==LIGHT_SAVE&&save_hold&&mode!=LIGHT_ERROR&&mode!=LIGHT_STROBE)mode=LIGHT_SAVE;
     if(mode!=active_mode){
         active_mode=mode;fade_ticks=0;
         for(k=0;k<3;k++)fade_from[k]=light_value[k];
         if(mode==LIGHT_SAVE)save_hold=500; /* Brief Flash writes remain visible. */
         if(mode==LIGHT_ERROR)error_ticks=0;
+        if(mode==LIGHT_STROBE)strobe_active=255;
     }
     if(fade_ticks<LIGHT_FADE_MS)fade_ticks++;
     light_ticks=(uint16_t)((light_ticks+1)%3000);
     error_ticks=(uint16_t)((error_ticks+1)%1600);
+    if(mode==LIGHT_STROBE){
+        if(style!=strobe_active){strobe_active=style;strobe_ticks=0;}
+        else if(++strobe_ticks>=strobe_patterns[style].period)strobe_ticks=0;
+    }
     if(++light_divider<5)return; /* 200Hz envelope, PWM itself runs in hardware. */
     light_divider=0;
+    if(mode==LIGHT_STROBE){
+        color=strobe_color(style,strobe_ticks);
+        light_value[0]=color==1?255U*256U:0;
+        light_value[1]=0;
+        light_value[2]=color==2?255U*256U:0;
+        TIM1->CCR1=color==1?LED_PWM_PERIOD:0;
+        TIM1->CCR2=0;
+        TIM1->CCR3=color==2?LED_PWM_PERIOD:0;
+        return; /* Do not soften individual flashes with the normal color fade. */
+    }
     if(mode==LIGHT_LEVEL)target[1]=breath(light_ticks,3000,140);
     else if(mode==LIGHT_ERROR)target[0]=breath(error_ticks,1600,170);
     else if(mode==LIGHT_SAVE){target[1]=100U*256U;target[2]=120U*256U;}
@@ -107,6 +154,7 @@ void Controls_Init(void)
     quarter_steps=0;hold_ticks=light_ticks=error_ticks=fade_ticks=save_hold=0;
     active_mode=LIGHT_IDLE;light_divider=0;
     level_distance=0;
+    strobe_mode=STROBE_DOUBLE;strobe_active=255;strobe_ticks=0;
     light_value[0]=light_value[1]=light_value[2]=0;
     fade_from[0]=fade_from[1]=fade_from[2]=0;
     GPIO_ResetBits(GPIOA, GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10);
@@ -170,3 +218,8 @@ void Controls_SetLevelOffset(int32_t pitch,int32_t roll)
     level_distance=(uint16_t)(result>150?150:result);
 }
 uint16_t Controls_LevelDistance(void) { return level_distance; }
+void Controls_SetStrobe(uint8_t mode) { strobe_mode=mode<STROBE_MODE_COUNT?mode:STROBE_OFF; }
+const char *Controls_StrobeName(uint8_t mode)
+{
+    return strobe_patterns[mode<STROBE_MODE_COUNT?mode:STROBE_OFF].name;
+}
