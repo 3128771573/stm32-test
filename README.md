@@ -1,49 +1,75 @@
-# STM32 小仪表
+<div align="center">
 
-基于 STM32F103C8T6 的桌面小仪表：电子气泡水平仪、温湿度、Flash 历史记录和实时调试。
-使用 Keil AC5 与 ST 标准外设库 V3.5.0，OLED 为单色 128×64 I2C 屏。
+<img src="level_dashboard_2026-10-09/docs/hero.svg" alt="STM32 多功能小仪表" width="100%">
 
-**推荐使用 [新版多功能仪表](level_dashboard_2026-10-09/)**。原版项目独立保留，便于参考和对比。
+<h1>STM32 多功能小仪表</h1>
 
-| 项目 | 内容 | 验收状态 |
-|---|---|---|
-| [新版多功能仪表](level_dashboard_2026-10-09/) | 十页仪表、温湿度、Flash 记录、红蓝灯效与历史开机时长 | DHT11 已实测恢复；E 版编译通过，会话记录待烧板验收 |
-| [原版水平仪](level/) | MPU6050 电子气泡水平仪 | 原七阶段功能已完成硬件实测 |
+**把一块 STM32F103C8T6，做成能倾斜、能测温、能记录的桌面仪表。**
 
-![新版界面：由实际绘图代码生成，数值为测试样例](level_dashboard_2026-10-09/docs/screen-simplified.png)
+[快速开始](#快速开始) · [功能一览](#功能一览) · [新版工程](level_dashboard_2026-10-09/README.md) · [接线教程](level_dashboard_2026-10-09/docs/wiring-beginner.md)
 
-## 新版有哪些功能
+![MCU](https://img.shields.io/badge/MCU-STM32F103C8T6-087ea4?style=flat-square)
+![Toolchain](https://img.shields.io/badge/Keil-ARM_Compiler_5-334155?style=flat-square)
+![Release](https://img.shields.io/badge/固件-2026--10--10_E-2563eb?style=flat-square)
+![Status](https://img.shields.io/badge/新增功能-待实物验收-f59e0b?style=flat-square)
 
-- **十页界面**：LEVEL、CLIMATE、HISTORY、SYSTEM、RAW DATA、TREND、DEBUG、STROBE、RUNTIME、SESSIONS。保留平滑气泡、稳定数字，并可查看红蓝灯效与每次开机时长。
-- **温湿度与记录**：DHT11 每 2.5 秒读取；W25Q20–128 循环保存，只使用末尾 64KB，支持掉电后恢复和最近 32 条浏览。
-- **偏移灯光**：三色 LED 使用 2kHz、3600 级硬件 PWM；首页越偏离中心，红灯越亮，配合平滑换色和呼吸效果。
-- **旋转编码器操作**：旋转翻页，历史数据与开机会话停留 0.8 秒自动进入浏览；两端继续旋转即可退出。PB10 可另接独立按钮。
-- **静置渐暗**：45 秒后渐暗而不关屏，旋转、按键或累计倾斜至少 0.3° 恢复亮度。
-- **原始数据与趋势**：六轴寄存器原值、约 12 秒俯仰／横滚趋势，以及 DHT 帧、PWM 和采样速率诊断。`RUNTIME` 实时显示当前开机时长；`SESSIONS` 可查历史会话，Flash 每分钟保存一次时长检查点。突然断电时显示最后检查点形成的下界，不能得到精确断电时刻。日期功能已移除。
+</div>
 
-本轮加强了倒置和超出姿态范围的保护，避免虚假水平提示；OLED 运行掉线后按 500ms 间隔检查 ACK 并重配置，恢复后补刷整屏。
-已修复 DHT 下降沿中断初始化问题，用户确认温湿度正常。Flash 使用 CRC 和独立提交标记，未知记录区内容显示 LOCKED，不自动格式化。
+## 项目
+
+这是一个以电子水平仪为核心的 STM32 学习项目。新版加入温湿度读取、Flash 历史记录、红蓝灯效和开机时长记录；界面通过 128×64 I²C OLED 与旋转编码器操作。
+
+<div align="center">
+
+<img src="level_dashboard_2026-10-09/docs/strobe.png" alt="STROBE 红蓝灯效页面" width="88%">
+
+红蓝灯效独立页面 · 模式可由旋转编码器切换
+
+</div>
+
+## 功能一览
+
+| 页面 | 用途 |
+|---|---|
+| LEVEL / CLIMATE | 平滑气泡与倾斜数据 / DHT11 温湿度 |
+| HISTORY / SYSTEM | 浏览测量记录 / 设备与 Flash 状态 |
+| RAW DATA / TREND / DEBUG | 原始传感器值 / 约 12 秒变化曲线 / 运行诊断 |
+| STROBE | 独立红蓝灯效页面，可旋转选择节奏 |
+| RUNTIME / SESSIONS | 本次开机时长 / 浏览历史会话 |
+
+旋转编码器翻页和选择。扩展模块的引脚、供电、电阻摆放和逐步验收都整理在[新手接线教程](level_dashboard_2026-10-09/docs/wiring-beginner.md)。
 
 ## 快速开始
 
-1. 下载 [新版 HEX](level_dashboard_2026-10-09/firmware/level.hex)，通过现有 ST-Link 工具烧录；需要比较时可用 [上一版 HEX](level_dashboard_2026-10-09/firmware/level_previous.hex)。
-2. 按 [一步一步接线教程](level_dashboard_2026-10-09/docs/wiring-beginner.md) 接线，再阅读 [页面操作与板上验收](level_dashboard_2026-10-09/docs/dashboard.md)。
-3. 放平、放稳后上电等待校准，再旋转编码器查看各页。
+1. 从[固件目录](level_dashboard_2026-10-09/firmware/)下载 `level.hex`，用 ST-Link 烧录。
+2. 按[接线教程](level_dashboard_2026-10-09/docs/wiring-beginner.md)连接模块；逐页操作见[页面说明](level_dashboard_2026-10-09/docs/dashboard.md)。
+3. 放平设备并上电，等待启动自检和水平校准完成。
 
-修改源码时，用 Keil 打开 [level.uvprojx](level_dashboard_2026-10-09/MDK-ARM/level.uvprojx)，或在仓库根目录的 PowerShell 执行：
+需要修改源码时，用 Keil 打开新版 `MDK-ARM/level.uvprojx`，或在 Windows PowerShell 运行：
 
 ```powershell
 Set-Location .\level_dashboard_2026-10-09
 .\build.cmd
 ```
 
-`build.cmd` 自动查找 Keil UV4；源码为 GBK，Markdown 为 UTF-8。完整工程、库和文档都在新版目录内。
+工程使用 Keil ARM Compiler 5.06 update 7 和 ST 标准外设库 V3.5.0。源码按原工程保存为 GBK，构建脚本为 CRLF。
 
-| 本轮构建结果 | 数值 |
-|---|---:|
-| ROM | 31,536 字节 |
-| RAM（RW + ZI） | 8,048 字节 |
-| Keil 编译诊断 | 0 错误、0 警告 |
+## 发布状态
 
-2026-10-10 E 版 Keil 编译 0 错误、0 警告；新增会话写入和断电恢复仍待实物验收。原版水平仪的实测结论不等于新版全部功能已通过。
-详细改动见 [更新说明](level_dashboard_2026-10-09/CHANGELOG.md)，检查范围及硬件验收见 [验证记录](level_dashboard_2026-10-09/docs/validation.md)。
+| 项目 | 当前版本 |
+|---|---|
+| 固件 | 2026-10-10 E · [下载 HEX](level_dashboard_2026-10-09/firmware/level.hex) |
+| 编译 | 0 错误、0 警告 · ROM 31,536 B · RAM（RW + ZI）8,048 B |
+| 实机状态 | 原七阶段水平仪及 DHT 修复有实测记录；E 版新增会话记录待上板验收 |
+| 回退 | [上一公开版 HEX](level_dashboard_2026-10-09/firmware/level_previous.hex) · [SHA-256](level_dashboard_2026-10-09/firmware/SHA256SUMS.txt) |
+
+突然断电时，设备无法再写入最终关机时刻；历史会话显示最近一次每分钟 Flash 检查点，因此是运行时长下界。会话功能无需 RTC、电池或日期校准。完整限制与验收方法见[验证记录](level_dashboard_2026-10-09/docs/validation.md)。
+
+## 仓库结构
+
+```text
+level/                       原七阶段水平仪参考工程
+level_dashboard_2026-10-09/  新版完整工程、固件与文档
+```
+
+PC 仿真框架和本地参考资料不在发布内容中。开始扩展前，建议先看新版[工程说明](level_dashboard_2026-10-09/README.md)和[接线教程](level_dashboard_2026-10-09/docs/wiring-beginner.md)。
