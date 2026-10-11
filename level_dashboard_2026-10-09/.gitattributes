@@ -10,3 +10,4 @@ firmware/*.hex -text
 *.bat -text
 *.md text eol=lf
 firmware/SHA256SUMS.txt text eol=lf
+*.pdf binary

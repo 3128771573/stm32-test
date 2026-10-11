@@ -6,7 +6,7 @@
 
 **把一块 STM32F103C8T6，做成能倾斜、能测温、能记录的桌面仪表。**
 
-[快速开始](#快速开始) · [功能一览](#功能一览) · [新版工程](level_dashboard_2026-10-09/README.md) · [接线教程](level_dashboard_2026-10-09/docs/wiring-beginner.md)
+[快速开始](#快速开始) · [功能一览](#功能一览) · [新版工程](level_dashboard_2026-10-09/README.md) · [接线教程](level_dashboard_2026-10-09/docs/wiring-beginner.md) · [固件技术白皮书（E 版）](level_dashboard_2026-10-09/docs/STM32多功能小仪表-固件技术白皮书-V2026.10.10E-修复版.pdf)
 
 ![MCU](https://img.shields.io/badge/MCU-STM32F103C8T6-087ea4?style=flat-square)
 ![Toolchain](https://img.shields.io/badge/Keil-ARM_Compiler_5-334155?style=flat-square)

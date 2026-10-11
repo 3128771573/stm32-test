@@ -6,7 +6,7 @@
 
 **STM32F103C8T6 · MPU6050 · SSD1306 · DHT11 · W25QXX**
 
-[烧录固件](firmware/level.hex) · [从零接线](docs/wiring-beginner.md) · [页面与验收](docs/dashboard.md) · [更新记录](CHANGELOG.md)
+[烧录固件](firmware/level.hex) · [从零接线](docs/wiring-beginner.md) · [页面与验收](docs/dashboard.md) · [更新记录](CHANGELOG.md) · [固件技术白皮书（E 版）](docs/STM32多功能小仪表-固件技术白皮书-V2026.10.10E-修复版.pdf)
 
 ![Keil](https://img.shields.io/badge/Keil-AC5-334155?style=flat-square)
 ![Build](https://img.shields.io/badge/Build-0_errors%20%7C%200_warnings-16a34a?style=flat-square)
@@ -98,6 +98,7 @@
 | [红蓝灯效](docs/strobe.md) | 模式说明与操作 |
 | [软件验证记录](docs/validation.md) | 已验证项目、实机验收清单和限制 |
 | [更新日志](CHANGELOG.md) | 版本功能变化 |
+| [固件技术白皮书（E 版）](docs/STM32多功能小仪表-固件技术白皮书-V2026.10.10E-修复版.pdf) | 113 页源码级解读，分析范围为 V2026.10.10E；工作区后续已有 F 版更新 |
 
 ## 硬件验收状态
 
