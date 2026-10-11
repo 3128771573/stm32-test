@@ -2,104 +2,101 @@
 
 <img src="docs/hero.svg" alt="STM32 多功能小仪表" width="100%">
 
-<h1>STM32 多功能小仪表</h1>
+# STM32 多功能小仪表 · E 版工程
 
-**STM32F103C8T6 · MPU6050 · SSD1306 · DHT11 · W25QXX**
+**V2026.10.10E · STM32F103C8T6 · Keil AC5 · 公开发布工程**
 
-[烧录固件](firmware/level.hex) · [从零接线](docs/wiring-beginner.md) · [页面与验收](docs/dashboard.md) · [更新记录](CHANGELOG.md) · [固件技术白皮书（E 版）](docs/STM32多功能小仪表-固件技术白皮书-V2026.10.10E-修复版.pdf)
+[固件 HEX](firmware/level.hex) · [新手接线](docs/wiring-beginner.md) · [页面指南](docs/dashboard.md) · [验证清单](docs/validation.md) · [技术白皮书 PDF](docs/STM32多功能小仪表-固件技术白皮书-V2026.10.10E-修复版.pdf)
 
-![Keil](https://img.shields.io/badge/Keil-AC5-334155?style=flat-square)
 ![Build](https://img.shields.io/badge/Build-0_errors%20%7C%200_warnings-16a34a?style=flat-square)
-![Hardware](https://img.shields.io/badge/E版-待实物验收-f59e0b?style=flat-square)
+![ROM](https://img.shields.io/badge/ROM-31%2C536_B-2563eb?style=flat-square)
+![RAM](https://img.shields.io/badge/RW%2BZI-8%2C048_B-7c3aed?style=flat-square)
+![Hardware](https://img.shields.io/badge/E_版新增功能-待实机验收-f59e0b?style=flat-square)
 
 </div>
 
-## 硬件与灯效预览
+## 工程简介
 
-<div align="center">
+这份目录包含 GitHub 当前发布的 E 版源码、Keil 工程、HEX 固件和配套文档。设备以 MPU6050 倾斜测量为核心，使用 OLED 与旋转编码器交互，并扩展温湿度、Flash 历史、诊断、红蓝灯效和开机时长记录。
 
-<img src="docs/strobe.png" alt="STROBE 红蓝灯效页面" width="86%">
+> 屏显版本为 `20261010E`。构建已通过 Keil ARM Compiler 5.06 update 7（0 错误、0 警告）；E 版新增会话记录等功能仍须烧录到实物后逐项验收。软件构建通过不等于硬件验收通过。
 
-红蓝灯效独立页面 · 支持五种节奏模式
+## 快速上手
 
-</div>
+1. 先按[新手接线教程](docs/wiring-beginner.md)连接最小系统；接线、改电阻或插拔模块前先断电。
+2. 下载 [firmware/level.hex](firmware/level.hex)，通过 ST-Link 烧录；需要确认文件时查看 [SHA256SUMS.txt](firmware/SHA256SUMS.txt)。
+3. 上电观察 POST 自检结果，平放设备等待校准，然后旋转编码器翻页检查各页面。
+4. 逐个接入 DHT11、W25QXX 和 LED，按[验证清单](docs/validation.md)核对可观察结果。
 
-当前发布为 **2026-10-10 E**（屏显版本 `20261010E`）。固件由 Keil ARM Compiler 5.06 update 7 构建，编译无错误、无警告。原七阶段水平仪有实物验收记录；E 版新增的历史开机时长功能仍待烧板验收。
-
-## 能做什么
-
-| 功能 | 内容 |
-|---|---|
-| 倾斜仪表 | 平滑气泡、稳定角度、倒置与大倾角保护、偏移联动 RGB 灯 |
-| 温湿度 | DHT11 周期采样、超时恢复与状态诊断 |
-| 数据记录 | W25QXX 保存测量历史，掉电保留并循环使用末尾 64KB |
-| 可观测性 | 原始六轴数据、约 12 秒趋势、传感器和调度诊断 |
-| 灯效 | STROBE 独立页面，旋转选择 OFF、ALT、DOUBLE、TRIPLE、CHASE |
-| 开机记录 | RUNTIME 查看本次时长；SESSIONS 浏览历史开机时长与复位原因 |
-| 启动检查 | 逐项显示真实自检结果；只有真实读回或检查完成后才显示完成 |
-
-旋转编码器负责翻页和选择。手上的 A/C/B 模块没有按压引脚，PB10 可以空着，也可外接独立按钮。
-
-## 下载与烧录
-
-- 最新固件：[level.hex](firmware/level.hex)
-- 上一公开七页版：[level_previous.hex](firmware/level_previous.hex)
-- 校验值：[SHA256SUMS.txt](firmware/SHA256SUMS.txt)
-
-使用 ST-Link 烧录 `level.hex`。已有 Flash 测量记录区仍保留在芯片末尾 64KB；升级无需清空。遇到未知 Flash 内容时程序会锁定记录写入，不会自动格式化或全片擦除。
-
-## 接线与上手
-
-建议按以下顺序操作：
-
-1. 阅读[一步一步接线教程](docs/wiring-beginner.md)，先接 3.3V、GND 和编码器，确认旋转翻页。
-2. 逐个增加 LED、电阻、DHT11 和 W25QXX；每一步都按教程中的可观测结果验收。
-3. 查看[引脚表和页面操作](docs/dashboard.md)，放平上电并完成校准。
-4. 遇到问题时查[验证与排障记录](docs/validation.md)。
-
-![扩展模块接线图](docs/wiring.png)
-
-> 所有模块共地并使用 3.3V 逻辑。红、绿、蓝 LED 每颗各串 330Ω；DHT11 裸传感器 DATA 需 4.7kΩ 上拉，三针小板通常已带上拉。详细接法以教程为准。
-
-## 引脚速查
-
-| 模块 / 信号 | STM32 引脚 |
-|---|---|
-| OLED + MPU6050 软件 I2C | PB6=SCL，PB7=SDA |
-| 蜂鸣器 | PB8（低电平触发） |
-| DHT11 DATA | PA1 |
-| W25QXX SPI1 | PA4=CS，PA5=CLK，PA6=MISO，PA7=MOSI |
-| 编码器 | PB0=A，GND=C，PB1=B |
-| RGB 红 / 绿 / 蓝 | PA8 / PA9 / PA10，每路串 330Ω |
-| 可选独立按钮 | PB10 与 GND；没有按钮可悬空 |
-| ST-Link SWD | PA13=SWDIO，PA14=SWCLK |
-
-## 开机时长记录的边界
-
-`RUNTIME` 是本次上电后的实时计时；Flash 每分钟写入一次存活检查点，`SESSIONS` 可查看过往开机记录。突然断电时 MCU 无法记录准确断电时刻，因此显示最近检查点对应的运行时长下界；没有检查点时显示 `NO CHECKPOINT`。该功能不依赖 RTC、日期或 VBAT 电池。旧记录容量有限，新记录会逐步覆盖更早内容，详见[会话记录说明](docs/sessions.md)。
-
-## 编译
-
-需要 Windows、Keil MDK 和 ARM Compiler 5.06 update 7。打开 `MDK-ARM/level.uvprojx` 后按 F7 编译，或在本目录运行：
+Windows 下用 Keil 打开 `MDK-ARM/level.uvprojx` 并按 F7 编译；也可以在本目录执行：
 
 ```powershell
 .\build.cmd
 ```
 
-脚本会自动查找 Keil UV4。构建结果：ROM 31,536 字节；RAM（RW + ZI）8,048 字节；0 错误、0 警告。源码为 GBK 编码，Markdown 为 UTF-8；不要用会改写编码的工具批量保存 `.c/.h`。
+脚本查找 Keil `UV4.exe` 并输出 `MDK-ARM/Obj/level.hex`。如果自动找不到 Keil，直接从 Keil 打开工程编译，自动查找失败时，可在 Keil 中直接打开工程；构建脚本为 [build.cmd](build.cmd)。
 
-## 文档导航
+## 页面导览
+
+| 页面 | 内容与用途 |
+|---|---|
+| LEVEL | 气泡、俯仰与横滚；红灯亮度随偏移增加 |
+| CLIMATE | DHT11 温度、湿度和读取状态 |
+| HISTORY | Flash 中保存的倾斜测量记录 |
+| SYSTEM | 固件、复位原因、器件与 Flash 状态 |
+| RAW DATA | MPU6050 六轴原始值和芯片温度原值 |
+| TREND | 最近约 12 秒的角度变化，重启后清空 |
+| DEBUG | 传感器帧、错误计数、PWM、输入与节拍诊断 |
+| STROBE | 独立红蓝灯效：OFF、ALT、DOUBLE、TRIPLE、CHASE |
+| RUNTIME | 本次开机计时与可用历史检查点比较 |
+| SESSIONS | 浏览 BOOT 与 ALIVE 会话记录 |
+
+当前编码器接线为 A→PB0、C→GND、B→PB1；手上模块没有按压触点，因此所有交互都可只靠旋转完成。PB10 是可选独立按钮。
+
+## 硬件引脚速查
+
+| 模块 | 接线 | 补充要求 |
+|---|---|---|
+| 4 针 I²C OLED + MPU6050 | PB6=SCL、PB7=SDA | 共用总线、共地；OLED 0x3C，MPU6050 0x68 |
+| 蜂鸣器 | PB8 | 当前模块低电平触发 |
+| DHT11 | PA1 | 裸器件 DATA 用 4.7kΩ 上拉至 3.3V；小板通常自带 |
+| W25QXX SPI1 | PA4=CS、PA5=CLK、PA6=MISO、PA7=MOSI | 3.3V；WP/HOLD 上拉至 3.3V |
+| 编码器 | PB0=A、C=GND、PB1=B | 供电 3.3V；无需按压键 |
+| 红/绿/蓝 LED | PA8/PA9/PA10 | 每颗单独串 330Ω，阴极接 GND |
+| 可选独立按钮 | PB10 与 GND | 常开按钮，不接也能旋转操作 |
+| ST-Link | PA13=SWDIO、PA14=SWCLK、GND | 核心板 USB 供电时不接 ST-Link 3.3V |
+
+![面包板接线示意](docs/wiring.png)
+
+## 自检状态怎么看
+
+- `DONE`：本次真实通信、读回、扫描或写入核验成功。
+- `ERR`：检查失败；`SKIP`：条件不足，没有执行。
+- `LOCK`：Flash 中存在未知内容，程序保护数据并停止写入。
+- `CFG`：只确认 MCU 的 GPIO/PWM 寄存器配置，不能证明实体 LED 亮度或蜂鸣器声音正常。
+- `EVENT DONE`：本次 BOOT 事件已写入并读回确认。
+
+启动自检分屏可在 POST 页面通过旋转查看。页面与交互细节见[dashboard.md](docs/dashboard.md)。
+
+## 开机时长与 Flash 边界
+
+`RUNTIME` 显示本次开机时间；Flash 每分钟写入一次存活检查点。意外断电时无法再写最终时长，所以旧会话显示最近检查点形成的时长下界，通常存在约一分钟误差。没有有效检查点时会显示 `NO CHECKPOINT`。项目不使用 RTC 日期或 VBAT。存储容量有限，较新记录会逐步覆盖更早的记录，详见[会话设计说明](docs/sessions.md)。
+
+记录区位于 Flash 末尾 64 KB，前 8 KB 为会话事件区。不要全片擦除或随意修改区域边界；遇到未知记录时 `LOCK` 是保护行为。
+
+## 文档索引
 
 | 文档 | 内容 |
 |---|---|
-| [新手接线教程](docs/wiring-beginner.md) | 面包板、电源轨、电阻、模块逐步接法 |
-| [接线、页面与验收](docs/dashboard.md) | 完整引脚表、旋转操作、每页行为 |
-| [开机时长与历史会话](docs/sessions.md) | 记录格式、检查点和掉电误差边界 |
-| [红蓝灯效](docs/strobe.md) | 模式说明与操作 |
-| [软件验证记录](docs/validation.md) | 已验证项目、实机验收清单和限制 |
-| [更新日志](CHANGELOG.md) | 版本功能变化 |
-| [固件技术白皮书（E 版）](docs/STM32多功能小仪表-固件技术白皮书-V2026.10.10E-修复版.pdf) | 113 页源码级解读，分析范围为 V2026.10.10E；工作区后续已有 F 版更新 |
+| [wiring-beginner.md](docs/wiring-beginner.md) | 从最小系统开始的接线步骤、电阻和验收 |
+| [dashboard.md](docs/dashboard.md) | 页面行为、引脚与编码器操作 |
+| [validation.md](docs/validation.md) | 软件检查结果和烧板验收步骤 |
+| [sessions.md](docs/sessions.md) | 会话事件、时长下界与容量限制 |
+| [strobe.md](docs/strobe.md) | 红蓝灯效模式和操作 |
+| [build.cmd](build.cmd) | Windows 下调用 Keil 的构建脚本 |
+| [固件技术白皮书](docs/STM32多功能小仪表-固件技术白皮书-V2026.10.10E-修复版.pdf) | E 版架构、模块与代码详解 |
+| [变更记录](CHANGELOG.md) | 发布版本变更 |
 
-## 硬件验收状态
+## 编码与修改约定
 
-DHT11 的 EXTI 初始化问题已经修复并由用户确认恢复读取。其余新版软件已完成 Keil 构建和逻辑检查；新会话记录、OLED 恢复、灯效手感等仍须在真实硬件上验收。请按[验证记录](docs/validation.md)逐项确认，软件构建结果不代替实机结果。
+工程源码 `USER/*.c`、`*.h` 使用 GBK 编码；Markdown 使用 UTF-8。修改中文源码时先转 UTF-8，编辑后再转回 GBK。`.cmd`/`.bat` 必须保持 CRLF。编译生成的 `MDK-ARM/Obj/` 文件是构建产物。

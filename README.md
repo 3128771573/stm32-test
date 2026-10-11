@@ -2,74 +2,88 @@
 
 <img src="level_dashboard_2026-10-09/docs/hero.svg" alt="STM32 多功能小仪表" width="100%">
 
-<h1>STM32 多功能小仪表</h1>
+# STM32 多功能小仪表
 
-**把一块 STM32F103C8T6，做成能倾斜、能测温、能记录的桌面仪表。**
+**一块 STM32F103C8T6，集倾斜测量、温湿度、数据记录与灯效于一体。**
 
-[快速开始](#快速开始) · [功能一览](#功能一览) · [新版工程](level_dashboard_2026-10-09/README.md) · [接线教程](level_dashboard_2026-10-09/docs/wiring-beginner.md) · [固件技术白皮书（E 版）](level_dashboard_2026-10-09/docs/STM32多功能小仪表-固件技术白皮书-V2026.10.10E-修复版.pdf)
+[下载固件](level_dashboard_2026-10-09/firmware/level.hex) · [新手接线](level_dashboard_2026-10-09/docs/wiring-beginner.md) · [页面操作](level_dashboard_2026-10-09/docs/dashboard.md) · [工程说明](level_dashboard_2026-10-09/README.md) · [E 版技术白皮书](level_dashboard_2026-10-09/docs/STM32多功能小仪表-固件技术白皮书-V2026.10.10E-修复版.pdf)
 
 ![MCU](https://img.shields.io/badge/MCU-STM32F103C8T6-087ea4?style=flat-square)
-![Toolchain](https://img.shields.io/badge/Keil-ARM_Compiler_5-334155?style=flat-square)
-![Release](https://img.shields.io/badge/固件-2026--10--10_E-2563eb?style=flat-square)
-![Status](https://img.shields.io/badge/新增功能-待实物验收-f59e0b?style=flat-square)
+![Firmware](https://img.shields.io/badge/公开固件-V2026.10.10E-2563eb?style=flat-square)
+![Build](https://img.shields.io/badge/Keil_AC5-0_errors%20%7C%200_warnings-16a34a?style=flat-square)
+![Hardware](https://img.shields.io/badge/E_版新增功能-待实机验收-f59e0b?style=flat-square)
 
 </div>
 
-## 项目
+## 这个项目能做什么
 
-这是一个以电子水平仪为核心的 STM32 学习项目。新版加入温湿度读取、Flash 历史记录、红蓝灯效和开机时长记录；界面通过 128×64 I²C OLED 与旋转编码器操作。
+它以 MPU6050 水平测量为核心，用 128×64 I²C OLED 显示数据，通过旋转编码器翻页。DHT11 提供温湿度，W25QXX 保存测量和开机记录，三路 LED 可显示水平偏移，也有独立的红蓝灯效页面。
 
 <div align="center">
 
-<img src="level_dashboard_2026-10-09/docs/strobe.png" alt="STROBE 红蓝灯效页面" width="88%">
+<img src="level_dashboard_2026-10-09/docs/strobe.png" alt="红蓝灯效页面示意" width="82%">
 
-红蓝灯效独立页面 · 模式可由旋转编码器切换
+红蓝灯效独立页面 · 五种节奏可选
 
 </div>
 
-## 功能一览
-
-| 页面 | 用途 |
+| 页面 | 你能看到什么 |
 |---|---|
-| LEVEL / CLIMATE | 平滑气泡与倾斜数据 / DHT11 温湿度 |
-| HISTORY / SYSTEM | 浏览测量记录 / 设备与 Flash 状态 |
-| RAW DATA / TREND / DEBUG | 原始传感器值 / 约 12 秒变化曲线 / 运行诊断 |
-| STROBE | 独立红蓝灯效页面，可旋转选择节奏 |
-| RUNTIME / SESSIONS | 本次开机时长 / 浏览历史会话 |
+| LEVEL / CLIMATE | 水平状态、角度和偏移灯效 / 温度与相对湿度 |
+| HISTORY / SYSTEM | 测量记录 / 设备、复位原因与 Flash 状态 |
+| RAW DATA / TREND / DEBUG | MPU 原始数据 / 约 12 秒趋势 / 传感器与调度诊断 |
+| STROBE | OFF、ALT、DOUBLE、TRIPLE、CHASE 红蓝模式 |
+| RUNTIME / SESSIONS | 本次开机时长 / 历史开机检查点 |
 
-旋转编码器翻页和选择。扩展模块的引脚、供电、电阻摆放和逐步验收都整理在[新手接线教程](level_dashboard_2026-10-09/docs/wiring-beginner.md)。
+## 三步开始
 
-## 快速开始
+1. **先看接线。** 从[新手教程](level_dashboard_2026-10-09/docs/wiring-beginner.md)开始，断电插线，所有模块共地，按 3.3V 逻辑连接。
+2. **烧录固件。** 下载[当前公开 HEX](level_dashboard_2026-10-09/firmware/level.hex)，使用 ST-Link 烧录；也可先核对[SHA-256](level_dashboard_2026-10-09/firmware/SHA256SUMS.txt)。
+3. **逐项验收。** 上电查看启动自检，放平完成校准，再按[页面指南](level_dashboard_2026-10-09/docs/dashboard.md)检查传感器、灯光与记录功能。
 
-1. 从[固件目录](level_dashboard_2026-10-09/firmware/)下载 `level.hex`，用 ST-Link 烧录。
-2. 按[接线教程](level_dashboard_2026-10-09/docs/wiring-beginner.md)连接模块；逐页操作见[页面说明](level_dashboard_2026-10-09/docs/dashboard.md)。
-3. 放平设备并上电，等待启动自检和水平校准完成。
-
-需要修改源码时，用 Keil 打开新版 `MDK-ARM/level.uvprojx`，或在 Windows PowerShell 运行：
+要改源码，请安装 Keil MDK 和 ARM Compiler 5.06 update 7，在 Windows PowerShell 执行：
 
 ```powershell
 Set-Location .\level_dashboard_2026-10-09
 .\build.cmd
 ```
 
-工程使用 Keil ARM Compiler 5.06 update 7 和 ST 标准外设库 V3.5.0。源码按原工程保存为 GBK，构建脚本为 CRLF。
+构建脚本会调用 Keil 并生成 `MDK-ARM/Obj/level.hex`。公开 E 版构建结果为 0 错误、0 警告，ROM 31,536 B，RW+ZI 8,048 B。更多细节见[工程说明](level_dashboard_2026-10-09/README.md)。
 
-## 发布状态
+## 接线先记住这些
 
-| 项目 | 当前版本 |
-|---|---|
-| 固件 | 2026-10-10 E · [下载 HEX](level_dashboard_2026-10-09/firmware/level.hex) |
-| 编译 | 0 错误、0 警告 · ROM 31,536 B · RAM（RW + ZI）8,048 B |
-| 实机状态 | 原七阶段水平仪及 DHT 修复有实测记录；E 版新增会话记录待上板验收 |
-| 回退 | [上一公开版 HEX](level_dashboard_2026-10-09/firmware/level_previous.hex) · [SHA-256](level_dashboard_2026-10-09/firmware/SHA256SUMS.txt) |
+| 模块 | 引脚 | 注意事项 |
+|---|---|---|
+| OLED 与 MPU6050 | PB6=SCL，PB7=SDA | I²C 共用；OLED 地址 0x3C，MPU6050 地址 0x68 |
+| DHT11 | PA1 | 裸传感器 DATA 需 4.7kΩ 上拉；小板先检查是否自带 |
+| W25QXX | PA4=CS，PA5=CLK，PA6=MISO，PA7=MOSI | 仅用 3.3V，WP/HOLD 上拉 |
+| 编码器 A/C/B | PB0=A，GND=C，PB1=B | 旋转翻页；此模块没有按压开关 |
+| RGB LED | PA8/PA9/PA10 | 每颗 LED 串联 330Ω，阴极接 GND |
+| 蜂鸣器 | PB8 | 当前模块低电平触发 |
 
-突然断电时，设备无法再写入最终关机时刻；历史会话显示最近一次每分钟 Flash 检查点，因此是运行时长下界。会话功能无需 RTC、电池或日期校准。完整限制与验收方法见[验证记录](level_dashboard_2026-10-09/docs/validation.md)。
+完整面包板图、每步怎么插和每步应看到什么，都在[新手接线教程](level_dashboard_2026-10-09/docs/wiring-beginner.md)。
 
-## 仓库结构
+## 发布版本与验收状态
+
+当前仓库发布的是 **V2026.10.10E**，屏显版本 `20261010E`。已有实机记录覆盖早期水平仪、DHT11 与编码器翻页；E 版新增会话记录仍需在真实板上验收。公开文件包括[当前固件](level_dashboard_2026-10-09/firmware/level.hex)、[上一版固件](level_dashboard_2026-10-09/firmware/level_previous.hex)和[校验清单](level_dashboard_2026-10-09/firmware/SHA256SUMS.txt)。
+
+突然断电时，设备无法写入准确的结束时刻；历史记录以最近一次 Flash 存活检查点作为开机时长下界。功能不依赖 RTC、日期或 VBAT。详见[会话记录说明](level_dashboard_2026-10-09/docs/sessions.md)和[验证记录](level_dashboard_2026-10-09/docs/validation.md)。
+
+## 文档导航
+
+- [新手接线教程：电源、电阻、模块与分步验收](level_dashboard_2026-10-09/docs/wiring-beginner.md)
+- [页面、引脚和旋转操作](level_dashboard_2026-10-09/docs/dashboard.md)
+- [开机时长与会话记录边界](level_dashboard_2026-10-09/docs/sessions.md)
+- [STROBE 灯效模式](level_dashboard_2026-10-09/docs/strobe.md)
+- [故障排查与实机验收](level_dashboard_2026-10-09/docs/validation.md)
+- [E 版固件技术白皮书 PDF](level_dashboard_2026-10-09/docs/STM32多功能小仪表-固件技术白皮书-V2026.10.10E-修复版.pdf)
+- [变更记录](level_dashboard_2026-10-09/CHANGELOG.md)
+
+## 仓库目录
 
 ```text
-level/                       原七阶段水平仪参考工程
-level_dashboard_2026-10-09/  新版完整工程、固件与文档
+level/                       早期水平仪参考工程
+level_dashboard_2026-10-09/  当前公开 E 版源码、固件和文档
 ```
 
-PC 仿真框架和本地参考资料不在发布内容中。开始扩展前，建议先看新版[工程说明](level_dashboard_2026-10-09/README.md)和[接线教程](level_dashboard_2026-10-09/docs/wiring-beginner.md)。
+PC 仿真框架已按项目需求移除。源码使用 GBK，Markdown 使用 UTF-8，构建脚本使用 CRLF；修改源码时请参照工程说明中的编码规则。
